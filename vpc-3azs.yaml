@@ -1,0 +1,477 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: 'VPC: public and private subnets in three availability zones'
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: projectName
+
+  VpcCIDR:
+    Description: Enter the IP range (CIDR notation) for this VPC
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.0.0/16  
+
+  PublicASubnetAZ1CIDR:
+    Description: Enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.128.0/20
+
+  PublicASubnetAZ2CIDR:
+    Description: Enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.144.0/20
+
+  PublicASubnetAZ3CIDR:
+    Description: Enter the IP range (CIDR notation) for the public subnet in the third Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.164.0/20
+
+  PrivateASubnetAZ1CIDR:
+    Description: Enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.16.0/19
+
+  PrivateASubnetAZ2CIDR:
+    Description: Enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.32.0/19
+
+  PrivateASubnetAZ3CIDR:
+    Description: Enter the IP range (CIDR notation) for the private subnet in the third Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.64.0/19
+
+  PrivateBSubnetAZ1CIDR:
+    Description: Enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.192.0/21
+
+  PrivateBSubnetAZ2CIDR:
+    Description: Enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.200.0/21
+
+  PrivateBSubnetAZ3CIDR:
+    Description: Enter the IP range (CIDR notation) for the private subnet in the third Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.208.0/21
+
+  AvailabilityZone1:
+    Description: The first availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+    #Default: !Select [0, !GetAZs '']
+  
+  AvailabilityZone2:
+    Description: The second availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+    #Default: !Select [1, !GetAZs '']
+
+  AvailabilityZone3:
+    Description: The third availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+    #Default: !Select [2, !GetAZs '']
+
+  EnvironmentName:
+    Type: String
+    Description: Environment name - dev, test, stg or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - stg
+      - prod
+    ConstraintDescription: Specify either dev, test, stg or prod
+
+
+Metadata:
+  'AWS::CloudFormation::Interface':
+    ParameterGroups:
+    - Label:
+        default: Project
+      Parameters:
+        - ProjectName
+    - Label:
+        default: 'VPC Parameters'
+      Parameters:
+        - VpcCIDR        
+    - Label:
+        default: 'Subnets Parameters'
+      Parameters:
+        - PublicASubnetAZ1CIDR
+        - PublicASubnetAZ2CIDR
+        - PublicASubnetAZ3CIDR
+        - PrivateASubnetAZ1CIDR
+        - PrivateASubnetAZ2CIDR
+        - PrivateASubnetAZ3CIDR
+        - PrivateBSubnetAZ1CIDR
+        - PrivateBSubnetAZ2CIDR
+        - PrivateBSubnetAZ3CIDR
+    - Label:
+        default: 'Region Availability Zones'
+      Parameters:
+        - AvailabilityZone1
+        - AvailabilityZone2
+        - AvailabilityZone3
+    - Label:
+        default: Environment
+      Parameters:
+        - EnvironmentName
+
+
+Resources:
+  ############## Create VPC ##############
+  # projectName-environmentName-aws:region-vpc
+  # ej. project-dev-us-east-1-vpc
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+      - Key: Name        
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AWS::Region", "vpc" ] ]
+    
+  ############## Create Subnet ##############
+  # projectName-environmentName-aws-availabilityZone1-public-subnet
+  # ej. project-dev-us-east-1a-public-subnet
+  PublicASubnetAZ1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PublicASubnetAZ1CIDR
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name        
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "public-subnet" ] ]
+      - Key: Network
+        Value: public
+
+  # projectName-environmentName-aws-availabilityZone2-public-subnet
+  # ej. project-dev-us-east-1b-public-subnet
+  PublicASubnetAZ2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Ref PublicASubnetAZ2CIDR
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "public-subnet" ] ]
+      - Key: Network
+        Value: public
+
+  # projectName-environmentName-aws-availabilityZone3-public-subnet
+  # ej. project-dev-us-east-1c-public-subnet
+  PublicASubnetAZ3:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [2, !GetAZs '']
+      CidrBlock: !Ref PublicASubnetAZ3CIDR
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone3", "public-subnet" ] ]
+      - Key: Network
+        Value: public
+
+  # projectName-environmentName-aws-availabilityZone1-private1-subnet
+  # ej. project-dev-us-east-1a-private1-subnet
+  PrivateASubnetAZ1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PrivateASubnetAZ1CIDR
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name        
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "private1-subnet" ] ]
+      - Key: Network
+        Value: private
+   
+  # projectName-environmentName-aws-availabilityZone2-private1-subnet
+  # ej. project-dev-us-east-1b-private1-subnet
+  PrivateASubnetAZ2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Ref PrivateASubnetAZ2CIDR
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "private1-subnet" ] ]
+      - Key: Network
+        Value: private
+
+  # projectName-environmentName-aws-availabilityZone3-private1-subnet
+  # ej. project-dev-us-east-1c-private1-subnet
+  PrivateASubnetAZ3:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [2, !GetAZs '']
+      CidrBlock: !Ref PrivateASubnetAZ3CIDR
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone3", "private1-subnet" ] ]
+      - Key: Network
+        Value: private
+
+  # projectName-environmentName-aws-availabilityZone1-private2-subnet
+  # ej. project-dev-us-east-1a-private2-subnet
+  PrivateBSubnetAZ1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PrivateBSubnetAZ1CIDR
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name        
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "private2-subnet" ] ]
+      - Key: Network
+        Value: private
+  
+  # projectName-environmentName-aws-availabilityZone2-private2-subnet
+  # ej. project-dev-us-east-1b-private2-subnet
+  PrivateBSubnetAZ2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Ref PrivateBSubnetAZ2CIDR
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name    
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "private2-subnet" ] ]
+      - Key: Network
+        Value: private
+  
+  # projectName-environmentName-aws-availabilityZone3-private2-subnet
+  # ej. project-dev-us-east-1c-private2-subnet
+  PrivateBSubnetAZ3:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [2, !GetAZs '']
+      CidrBlock: !Ref PrivateBSubnetAZ3CIDR
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name    
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone3", "private2-subnet" ] ]
+      - Key: Network
+        Value: private
+
+  ############## Create Internet Gateway ##############
+  # projectName-environmentName-aws:region-igw
+  # ej. project-dev-us-east-1-igw
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AWS::Region", "igw" ] ]
+  
+  ############## Attachment Internet Gateway ##############
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  ############## Create Route Table ##############
+  # projectName-environmentName-public-rtb
+  # ej. project-dev-public-rtb
+  RouteTablePublic: # should be RouteTableAPublic, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, "public-rtb" ] ]
+      - Key: Network
+        Value: public
+  
+  # projectName-environmentName-aws:availabilityZone1-private1-rtb
+  # ej. project-dev-us-east-1a-private1-rtb
+  RouteTableAPrivateAZ1: # should be RouteTableAPrivate, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref AvailabilityZone1, "private1-rtb" ] ]
+      - Key: Network
+        Value: private
+  
+  # projectName-environmentName-aws:availabilityZone2-private1-rtb
+  # ej. project-dev-us-east-1b-private1-rtb
+  RouteTableAPrivateAZ2:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref AvailabilityZone2, "private1-rtb" ] ]
+      - Key: Network
+        Value: private
+
+  # projectName-environmentName-aws:availabilityZone3-private1-rtb
+  # ej. project-dev-us-east-1c-private1-rtb
+  RouteTableAPrivateAZ3:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref AvailabilityZone3, "private1-rtb" ] ]
+      - Key: Network
+        Value: private
+
+  #
+  # Route Table Subnet Associations
+  RouteTableAssociationPublicAZ1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicASubnetAZ1
+      RouteTableId: !Ref RouteTablePublic
+  
+  RouteTableAssociationPublicAZ2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicASubnetAZ2
+      RouteTableId: !Ref RouteTablePublic
+
+  RouteTableAssociationPublicAZ3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicASubnetAZ3
+      RouteTableId: !Ref RouteTablePublic
+
+  RouteTableAssociationAPrivateAZ1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateASubnetAZ1
+      RouteTableId: !Ref RouteTableAPrivateAZ1   
+  
+  RouteTableAssociationAPrivateAZ2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateASubnetAZ2
+      RouteTableId: !Ref RouteTableAPrivateAZ2
+  
+  RouteTableAssociationAPrivateAZ3:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateASubnetAZ3
+      RouteTableId: !Ref RouteTableAPrivateAZ3
+
+  RouteTablePublicInternetRoute: # should be RouteTablePublicAInternetRoute, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+
+Outputs:
+  TemplateID:
+    Description: 'germantorres.co template id.'
+    Value: 'vpc/vpc-3azs'
+  TemplateVersion:
+    Description: 'germantorres.co template version.'
+    Value: '__VERSION__'
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  AZs: # Better name would be NumberOfAZs, but we keep the name for backward compatibility
+    Description: 'Number of AZs'
+    Value: 3
+    Export:
+      Name: !Sub '${AWS::StackName}-AZs'
+  AZList:  # Better name would be AZs, but the name was already used
+    Description: 'List of AZs'
+    Value: !Join [',', [!Select [0, !GetAZs ''], !Select [1, !GetAZs ''], !Select [2, !GetAZs '']]]
+    Export:
+      Name: !Sub '${AWS::StackName}-AZList'
+  AZA:
+    Description: 'AZ of A'
+    Value: !Select [0, !GetAZs '']
+    Export:
+      Name: !Sub '${AWS::StackName}-AZA'
+  AZB:
+    Description: 'AZ of B'
+    Value: !Select [1, !GetAZs '']
+    Export:
+      Name: !Sub '${AWS::StackName}-AZB'
+  AZC:
+    Description: 'AZ of C'
+    Value: !Select [2, !GetAZs '']
+    Export:
+      Name: !Sub '${AWS::StackName}-AZC'
+  CidrBlock:
+    Description: 'The set of IP addresses for the VPC.'
+    Value: !GetAtt 'VPC.CidrBlock'
+    Export:
+      Name: !Sub '${AWS::StackName}-CidrBlock'
+  VPC:
+    Description: 'VPC.'
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VPC'
+  InternetGateway:
+    Description: 'InternetGateway.'
+    Value: !Ref InternetGateway
+    Export:
+      Name: !Sub '${AWS::StackName}-InternetGateway'
+  SubnetsPublic:
+    Description: 'Subnets public.'
+    Value: !Join [',', [!Ref PublicASubnetAZ1, !Ref PublicASubnetAZ2, !Ref PublicASubnetAZ3]]
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetsPublic'
+  RouteTablesPublic:
+    Description: 'Route tables public.'
+    Value: !Ref RouteTablePublic
+    Export:
+      Name: !Sub '${AWS::StackName}-RouteTablesPublic'
+  SubnetsAPrivate:
+    Description: 'Subnets private.'
+    Value: !Join [',', [!Ref PrivateASubnetAZ1, !Ref PrivateASubnetAZ2, !Ref PrivateASubnetAZ3]]
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetsAPrivate'
+  SubnetBPrivate:
+    Description: 'Subnets private.'
+    Value: !Join [',', [!Ref PrivateBSubnetAZ1, !Ref PrivateBSubnetAZ2, !Ref PrivateBSubnetAZ3]]
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetBPrivate'
+  RouteTablesPrivate:
+    Description: 'Route tables private.'
+    Value: !Join [',', [!Ref RouteTableAPrivateAZ1, !Ref RouteTableAPrivateAZ2, !Ref RouteTableAPrivateAZ3]]
+    Export:
+      Name: !Sub '${AWS::StackName}-RouteTablesPrivate'
