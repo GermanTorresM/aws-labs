@@ -2,10 +2,10 @@ AWSTemplateFormatVersion: '2010-09-09'
 
 Description: 'VPC: public and private subnets in two availability zones'
 
+
+##########################################  P A R A M E T E R S ##########################################
+# The Parameters allow the user to pass custom settings to the stack before creation
 Parameters:
-  ProjectName:
-    Type: String
-    Default: projectName
 
   VpcCIDR:
     Description: Enter the IP range (CIDR notation) for this VPC
@@ -80,13 +80,16 @@ Parameters:
     ConstraintDescription: Specify either dev, test, stg or prod
 
 
+##########################################  M E T A D A T A ##########################################
 Metadata:
-  'AWS::CloudFormation::Interface':
-    ParameterGroups:
-    - Label:
-        default: Project
-      Parameters:
-        - ProjectName
+  
+  Authors:
+    Description: Germán Torres M. (gtorres80@gmail.com)
+  License:
+    Description: 'Por definir'
+
+  AWS::CloudFormation::Interface:
+    ParameterGroups:    
     - Label:
         default: 'VPC Parameters'
       Parameters:
@@ -110,7 +113,28 @@ Metadata:
       Parameters:
         - EnvironmentName
 
+    ParameterLabels:
+      VpcCIDR:
+        default: VPC CIDR Block
+      AvailabilityZone1:
+        default: Availability Zone 1
+      AvailabilityZone2:
+        default: Availability Zone 2
+      PublicASubnetAZ1CIDR:
+        default: Public Subnet AZ 1
+      PublicASubnetAZ2CIDR:
+        default: Public Subnet AZ 2
+      PrivateASubnetAZ1CIDR:
+        default: Private Subnet AZ 1
+      PrivateASubnetAZ2CIDR:
+        default: Private Subnet AZ 2
+      PrivateBSubnetAZ1CIDR:
+        default: Private Subnet AZ 1
+      PrivateBSubnetAZ2CIDR:
+        default: Private Subnet AZ 2
 
+
+##########################################  R E S O U R C E S ##########################################
 Resources:
   ############## Create VPC ##############
   # projectName-environmentName-aws:region-vpc
@@ -124,7 +148,7 @@ Resources:
       InstanceTenancy: default
       Tags:
       - Key: Name        
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AWS::Region", "vpc" ] ]
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "vpc" ] ]
     
   ############## Create Subnet ##############
   # projectName-environmentName-aws-availabilityZone1-public-subnet
@@ -138,7 +162,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name        
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "public-subnet" ] ]
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "public-subnet" ] ]
       - Key: Network
         Value: public
 
@@ -153,7 +177,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "public-subnet" ] ]
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "public-subnet" ] ]
       - Key: Network
         Value: public
 
@@ -167,7 +191,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name        
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "private1-subnet" ] ]
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "private1-subnet" ] ]
       - Key: Network
         Value: private
    
@@ -181,7 +205,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "private1-subnet" ] ]
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "private1-subnet" ] ]
       - Key: Network
         Value: private
 
@@ -195,7 +219,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name        
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "private2-subnet" ] ]
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "private2-subnet" ] ]
       - Key: Network
         Value: private
   
@@ -209,7 +233,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name    
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "private2-subnet" ] ]
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "private2-subnet" ] ]
       - Key: Network
         Value: private  
 
@@ -221,7 +245,7 @@ Resources:
     Properties:
       Tags:
       - Key: Name
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AWS::Region", "igw" ] ]
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "igw" ] ]
   
   ############## Attachment Internet Gateway ##############
   VPCGatewayAttachment:
@@ -230,8 +254,8 @@ Resources:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
 
-  ############## Create Route Table ##############
-  # projectName-environmentName-public-rtb
+  ############## Create Route Table Public ##############
+  # StackName-environmentName-public-rtb
   # ej. project-dev-public-rtb
   RouteTablePublic: # should be RouteTableAPublic, but logical id was not changed for backward compatibility
     Type: 'AWS::EC2::RouteTable'
@@ -239,35 +263,18 @@ Resources:
       VpcId: !Ref VPC
       Tags:
       - Key: Name
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, "public-rtb" ] ]
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, "public-rtb" ] ]
       - Key: Network
         Value: public
-  
-  # projectName-environmentName-aws:availabilityZone1-private1-rtb
-  # ej. project-dev-us-east-1a-private1-rtb
-  RouteTableAPrivateAZ1: # should be RouteTableAPrivate, but logical id was not changed for backward compatibility
-    Type: 'AWS::EC2::RouteTable'
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref AvailabilityZone1, "private1-rtb" ] ]
-      - Key: Network
-        Value: private
-  
-  # projectName-environmentName-aws:availabilityZone2-private1-rtb
-  # ej. project-dev-us-east-1b-private1-rtb
-  RouteTableAPrivateAZ2:
-    Type: 'AWS::EC2::RouteTable'
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-      - Key: Name
-        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref AvailabilityZone2, "private1-rtb" ] ]
-      - Key: Network
-        Value: private
 
-  #
+  RouteTablePublicInternetRoute: # should be RouteTablePublicAInternetRoute, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
   # Route Table Subnet Associations
   RouteTableAssociationPublicAZ1:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
@@ -280,26 +287,158 @@ Resources:
     Properties:
       SubnetId: !Ref PublicASubnetAZ2
       RouteTableId: !Ref RouteTablePublic
+ 
+  # The NAT IP for the private subnet, as seen from within the public one
+  # ej. project-dev-us-east-1a-ip
+  NatEIP1:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "ip" ] ]
+
+  # The NAT IP for the private subnet, as seen from within the public one
+  # ej. project-dev-us-east-1b-ip
+  NatEIP2:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "ip" ] ]
+
+  ############## Create NAT Gateway ##############
+  # The NAT gateway for the private subnet
+  # ej. project-dev-us-east-1a-nat-gw
+  NATGateway1:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP1.AllocationId
+      SubnetId: !Ref PublicASubnetAZ1
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "nat-gw" ] ]
+
+  # The NAT gateway for the private subnet
+  # ej. project-dev-us-east-1b-nat-gw
+  NATGateway2:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP2.AllocationId
+      SubnetId: !Ref PublicASubnetAZ2
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "nat-gw" ] ]
+  
+  ############## Create Route Table Private ##############
+  # StackName-environmentName-aws:availabilityZone1-private1-rtb
+  # ej. project-dev-us-east-1a-private1-rtb
+  RouteTableAPrivateAZ1: # should be RouteTableAPrivate, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref AvailabilityZone1, "private1-rtb" ] ]
+      - Key: Network
+        Value: private
+  
+  RouteTableAPrivateAZ1Route:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTableAPrivateAZ1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway1
 
   RouteTableAssociationAPrivateAZ1:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
       SubnetId: !Ref PrivateASubnetAZ1
-      RouteTableId: !Ref RouteTableAPrivateAZ1   
-  
+      RouteTableId: !Ref RouteTableAPrivateAZ1
+
+  # StackName-environmentName-aws:availabilityZone2-private1-rtb
+  # ej. project-dev-us-east-1b-private1-rtb
+  RouteTableAPrivateAZ2:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref AvailabilityZone2, "private1-rtb" ] ]
+      - Key: Network
+        Value: private
+
+  RouteTableAPrivateAZ2Route:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTableAPrivateAZ2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway2
+
   RouteTableAssociationAPrivateAZ2:
     Type: 'AWS::EC2::SubnetRouteTableAssociation'
     Properties:
       SubnetId: !Ref PrivateASubnetAZ2
       RouteTableId: !Ref RouteTableAPrivateAZ2
   
-  RouteTablePublicInternetRoute: # should be RouteTablePublicAInternetRoute, but logical id was not changed for backward compatibility
+  # StackName-environmentName-aws:availabilityZone1-private2-rtb
+  # ej. project-dev-us-east-1a-private2-rtb
+  RouteTableBPrivateAZ1: # should be RouteTableAPrivate, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref AvailabilityZone1, "private2-rtb" ] ]
+      - Key: Network
+        Value: private
+  
+  RouteTableBPrivateAZ1Route:
     Type: 'AWS::EC2::Route'
     DependsOn: VPCGatewayAttachment
     Properties:
-      RouteTableId: !Ref RouteTablePublic
-      DestinationCidrBlock: '0.0.0.0/0'
-      GatewayId: !Ref InternetGateway
+      RouteTableId: !Ref RouteTableBPrivateAZ1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway1
+
+  RouteTableAssociationAPrivateAZ1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateBSubnetAZ1
+      RouteTableId: !Ref RouteTableBPrivateAZ1
+
+  # StackName-environmentName-aws:availabilityZone2-private2-rtb
+  # ej. project-dev-us-east-1b-private2-rtb
+  RouteTableBPrivateAZ2:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref AvailabilityZone2, "private2-rtb" ] ]
+      - Key: Network
+        Value: private
+
+  RouteTableBPrivateAZ2Route:
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTableBPrivateAZ2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway2
+
+  RouteTableAssociationBPrivateAZ2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateBSubnetAZ2
+      RouteTableId: !Ref RouteTableBPrivateAZ2
   
 
 Outputs:

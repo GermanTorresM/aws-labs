@@ -1,0 +1,861 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+
+Description: 'Wordpress on EC2 with RDS'
+
+
+##########################################  P A R A M E T E R S ##########################################
+# The Parameters allow the user to pass custom settings to the stack before creation
+Parameters:
+
+  VpcCIDR:
+    Description: Enter the IP range (CIDR notation) for this VPC
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.0.0/16  
+
+  PublicASubnetAZ1CIDR:
+    Description: Enter the IP range (CIDR notation) for the public subnet in the first Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.128.0/20
+
+  PublicASubnetAZ2CIDR:
+    Description: Enter the IP range (CIDR notation) for the public subnet in the second Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.144.0/20
+
+  PrivateASubnetAZ1CIDR:
+    Description: Enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.16.0/19
+
+  PrivateASubnetAZ2CIDR:
+    Description: Enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.32.0/19
+
+  PrivateBSubnetAZ1CIDR:
+    Description: Enter the IP range (CIDR notation) for the private subnet in the first Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.192.0/21
+
+  PrivateBSubnetAZ2CIDR:
+    Description: Enter the IP range (CIDR notation) for the private subnet in the second Availability Zone
+    Type: String
+    AllowedPattern: "(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})/(\\d{1,2})"
+    ConstraintDescription: must be a valid IP CIDR range of the form x.x.x.x/x.
+    Default: 10.0.200.0/21
+
+  AvailabilityZone1:
+    Description: The first availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+    #Default: !Select [0, !GetAZs '']
+  
+  AvailabilityZone2:
+    Description: The second availability zone in the region
+    Type: AWS::EC2::AvailabilityZone::Name
+    ConstraintDescription: Must be a valid availability zone
+    #Default: !Select [1, !GetAZs '']
+
+  DatabaseMasterUsername:
+    AllowedPattern: ^([a-zA-Z0-9]*)$
+    Description: The Amazon RDS master username.
+    ConstraintDescription: Must contain only alphanumeric characters (minimum 8; maximum 16).
+    MaxLength: 16
+    MinLength: 3
+    Type: String
+    Default: admin
+
+  DatabaseMasterPassword:
+    AllowedPattern: ^([a-zA-Z0-9`~!#$%^&*()_+,\\-])*$
+    ConstraintDescription: Must be letters (upper or lower), numbers, spaces, and these special characters `~!#$%^&*()_+,-
+    Description: The Amazon RDS master password. Letters, numbers, spaces, and these special characters `~!#$%^&*()_+,-
+    MaxLength: 41
+    MinLength: 8
+    NoEcho: true
+    Type: String
+    Default: passw0rd
+
+  WPAdminEmail:
+    AllowedPattern: ^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$
+    Description: The admin email address for WordPress and AWS notifications.
+    Type: String
+    Default: gtorres80@gmail.com
+
+  WPAdminPassword:
+    AllowedPattern: ^([a-zA-Z0-9`~!#$%^&*()_+,\\-])*$
+    ConstraintDescription: Must be letters (upper or lower), numbers, spaces, and these special characters `~!#$%^&*()_+,-
+    Description: The WordPress admin password. Letters, numbers, spaces, and these special characters `~!#$%^&*()_+,-
+    Type: String
+    NoEcho: true
+    Default: passw0rd
+
+  WPAdminUsername:
+    AllowedPattern: ^([a-zA-Z0-9])([a-zA-Z0-9_-])*([a-zA-Z0-9])$
+    Description: The WordPress admin username.
+    Type: String
+    Default: admin
+
+  EC2KeyName:
+    AllowedPattern: ^([a-zA-Z0-9 @.`~!#$%^&*()_+,\\-])*$
+    ConstraintDescription: Must be letters (upper or lower), numbers, and special characters.
+    Description: Name of an EC2 KeyPair. Your Web instances will launch with this KeyPair.
+    Type: AWS::EC2::KeyPair::KeyName
+
+  EnvironmentName:
+    Type: String
+    Description: Environment name - dev, test, stg or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - stg
+      - prod
+    ConstraintDescription: Specify either dev, test, stg or prod
+
+
+##########################################  M E T A D A T A ##########################################
+Metadata:
+
+  Authors:
+    Description: Germán Torres M - (gtorres80@gmail.com)
+  License:
+    Description: 'Por definir'
+
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: 'VPC Parameters'
+      Parameters:
+        - VpcCIDR
+    - Label:
+        default: 'Subnets Parameters'
+      Parameters:
+        - PublicASubnetAZ1CIDR
+        - PublicASubnetAZ2CIDR
+        - PrivateASubnetAZ1CIDR
+        - PrivateASubnetAZ2CIDR
+        - PrivateBSubnetAZ1CIDR
+        - PrivateBSubnetAZ2CIDR
+    - Label:
+        default: 'Region Availability Zones'
+      Parameters:
+        - AvailabilityZone1
+        - AvailabilityZone2
+    - Label:
+        default: 'EC2 Key Name Pair'
+      Parameters:
+        - EC2KeyName
+    - Label:
+        default: 'Database Master Parameters'
+      Parameters:
+        - DatabaseMasterUsername
+        - DatabaseMasterPassword
+    - Label:
+        default: 'Wordpress Parameters'
+      Parameters:
+        - WPAdminEmail
+        - WPAdminUsername
+        - WPAdminPassword
+    - Label:
+        default: Environment
+      Parameters:
+        - EnvironmentName
+    ParameterLabels:      
+      VpcCIDR:
+        default: VPC CIDR Block
+      AvailabilityZone1:
+        default: Availability Zone 1
+      AvailabilityZone2:
+        default: Availability Zone 2
+      PublicASubnetAZ1CIDR:
+        default: Public Subnet AZ 1
+      PublicASubnetAZ2CIDR:
+        default: Public Subnet AZ 2
+      PrivateASubnetAZ1CIDR:
+        default: Private Subnet AZ 1
+      PrivateASubnetAZ2CIDR:
+        default: Private Subnet AZ 2
+      PrivateBSubnetAZ1CIDR:
+        default: Private Subnet AZ 1
+      PrivateBSubnetAZ2CIDR:
+        default: Private Subnet AZ 2
+      WPAdminEmail:
+        default: Admin Email Address
+      WPAdminUsername:
+        default: Admin Username
+      WPAdminPassword:
+        default: Admin Password
+
+
+##########################################  R E S O U R C E S ##########################################
+Resources:
+  ############## Create VPC ##############
+  # projectName-environmentName-aws:region-vpc
+  # ej. project-dev-us-east-1-vpc
+  VPC:
+    Type: 'AWS::EC2::VPC'
+    Properties:
+      CidrBlock: !Ref VpcCIDR
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      InstanceTenancy: default
+      Tags:
+      - Key: Name        
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "vpc" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+    
+  ############## Create Subnet ##############
+  # projectName-environmentName-aws-availabilityZone1-public-subnet
+  # ej. project-dev-us-east-1a-public-subnet
+  PublicASubnetAZ1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PublicASubnetAZ1CIDR
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name        
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "public-subnet" ] ]
+      - Key: Network
+        Value: public
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  # projectName-environmentName-aws-availabilityZone2-public-subnet
+  # ej. project-dev-us-east-1b-public-subnet
+  PublicASubnetAZ2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Ref PublicASubnetAZ2CIDR
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "public-subnet" ] ]
+      - Key: Network
+        Value: public
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  # projectName-environmentName-aws-availabilityZone1-private1-subnet
+  # ej. project-dev-us-east-1a-private1-subnet
+  PrivateASubnetAZ1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PrivateASubnetAZ1CIDR
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name        
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "private1-subnet" ] ]
+      - Key: Network
+        Value: private
+      - Key: Environment
+        Value: !Ref EnvironmentName
+   
+  # projectName-environmentName-aws-availabilityZone2-private1-subnet
+  # ej. project-dev-us-east-1b-private1-subnet
+  PrivateASubnetAZ2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Ref PrivateASubnetAZ2CIDR
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "private1-subnet" ] ]
+      - Key: Network
+        Value: private
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  # projectName-environmentName-aws-availabilityZone1-private2-subnet
+  # ej. project-dev-us-east-1a-private2-subnet
+  PrivateBSubnetAZ1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [0, !GetAZs '']
+      CidrBlock: !Ref PrivateBSubnetAZ1CIDR
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name        
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "private2-subnet" ] ]
+      - Key: Network
+        Value: private
+      - Key: Environment
+        Value: !Ref EnvironmentName
+  
+  # projectName-environmentName-aws-availabilityZone2-private2-subnet
+  # ej. project-dev-us-east-1b-private2-subnet
+  PrivateBSubnetAZ2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select [1, !GetAZs '']
+      CidrBlock: !Ref PrivateBSubnetAZ2CIDR
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name    
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "private2-subnet" ] ]
+      - Key: Network
+        Value: private
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  ############## Create Internet Gateway ##############
+  # projectName-environmentName-aws:region-igw
+  # ej. project-dev-us-east-1-igw
+  InternetGateway:
+    Type: 'AWS::EC2::InternetGateway'
+    Properties:
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "igw" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+  
+  ############## Attachment Internet Gateway ##############
+  VPCGatewayAttachment:
+    Type: 'AWS::EC2::VPCGatewayAttachment'
+    Properties:
+      VpcId: !Ref VPC
+      InternetGatewayId: !Ref InternetGateway
+
+  ############## Create Route Table Public ##############
+  # StackName-environmentName-public-rtb
+  # ej. project-dev-public-rtb
+  RouteTablePublic: # should be RouteTableAPublic, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, "public-rtb" ] ]
+      - Key: Network
+        Value: public
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  RouteTablePublicInternetRoute: # should be RouteTablePublicAInternetRoute, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::Route'
+    DependsOn: VPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref RouteTablePublic
+      DestinationCidrBlock: '0.0.0.0/0'
+      GatewayId: !Ref InternetGateway
+
+  # Route Table Subnet Associations
+  RouteTableAssociationPublicAZ1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicASubnetAZ1
+      RouteTableId: !Ref RouteTablePublic
+  
+  RouteTableAssociationPublicAZ2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PublicASubnetAZ2
+      RouteTableId: !Ref RouteTablePublic
+ 
+  # The NAT IP for the private subnet, as seen from within the public one
+  # ej. project-dev-us-east-1a-ip
+  NatEIP1:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "ip" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  # The NAT IP for the private subnet, as seen from within the public one
+  # ej. project-dev-us-east-1b-ip
+  NatEIP2:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "ip" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  ############## Create NAT Gateway ##############
+  # The NAT gateway for the private subnet
+  # ej. project-dev-us-east-1a-nat-gw
+  NATGateway1:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP1.AllocationId
+      SubnetId: !Ref PublicASubnetAZ1
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone1", "nat-gw" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  # The NAT gateway for the private subnet
+  # <project-dev-us-east-1b-nat-gw>
+  NATGateway2:
+    DependsOn: VPCGatewayAttachment
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt NatEIP2.AllocationId
+      SubnetId: !Ref PublicASubnetAZ2
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AvailabilityZone2", "nat-gw" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+  
+  ############## Create Route Table Private ##############
+  # StackName-environmentName-aws:availabilityZone1-private1-rtb
+  # ej. project-dev-us-east-1a-private1-rtb
+  RouteTableAPrivateAZ1: # should be RouteTableAPrivate, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref AvailabilityZone1, "private1-rtb" ] ]
+      - Key: Network
+        Value: private
+      - Key: Environment
+        Value: !Ref EnvironmentName
+  
+  RouteTableAPrivateAZ1Route:
+    Type: 'AWS::EC2::Route'
+    DependsOn: NATGateway1
+    Properties:
+      RouteTableId: !Ref RouteTableAPrivateAZ1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway1
+
+  RouteTableAssociationAPrivateAZ1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateASubnetAZ1
+      RouteTableId: !Ref RouteTableAPrivateAZ1
+
+  # StackName-environmentName-aws:availabilityZone2-private1-rtb
+  # ej. project-dev-us-east-1b-private1-rtb
+  RouteTableAPrivateAZ2:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref AvailabilityZone2, "private1-rtb" ] ]
+      - Key: Network
+        Value: private
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  RouteTableAPrivateAZ2Route:
+    Type: 'AWS::EC2::Route'
+    DependsOn: NATGateway2
+    Properties:
+      RouteTableId: !Ref RouteTableAPrivateAZ2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway2
+
+  RouteTableAssociationAPrivateAZ2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateASubnetAZ2
+      RouteTableId: !Ref RouteTableAPrivateAZ2
+  
+  # StackName-environmentName-aws:availabilityZone1-private2-rtb
+  # ej. project-dev-us-east-1a-private2-rtb
+  RouteTableBPrivateAZ1: # should be RouteTableAPrivate, but logical id was not changed for backward compatibility
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref AvailabilityZone1, "private2-rtb" ] ]
+      - Key: Network
+        Value: private
+      - Key: Environment
+        Value: !Ref EnvironmentName
+  
+  RouteTableBPrivateAZ1Route:
+    Type: 'AWS::EC2::Route'
+    DependsOn: NATGateway1
+    Properties:
+      RouteTableId: !Ref RouteTableBPrivateAZ1
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway1
+
+  RouteTableAssociationBPrivateAZ1:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateBSubnetAZ1
+      RouteTableId: !Ref RouteTableBPrivateAZ1
+
+  # StackName-environmentName-aws:availabilityZone2-private2-rtb
+  # <project-dev-us-east-1b-private2-rtb>
+  RouteTableBPrivateAZ2:
+    Type: 'AWS::EC2::RouteTable'
+    Properties:
+      VpcId: !Ref VPC
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref AvailabilityZone2, "private2-rtb" ] ]
+      - Key: Network
+        Value: private
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  RouteTableBPrivateAZ2Route:
+    Type: 'AWS::EC2::Route'
+    DependsOn: NATGateway2
+    Properties:
+      RouteTableId: !Ref RouteTableBPrivateAZ2
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId: !Ref NATGateway2
+
+  RouteTableAssociationBPrivateAZ2:
+    Type: 'AWS::EC2::SubnetRouteTableAssociation'
+    Properties:
+      SubnetId: !Ref PrivateBSubnetAZ2
+      RouteTableId: !Ref RouteTableBPrivateAZ2    
+ 
+  ############## Create Security Groups ##############
+  # <project-dev-us-east-1-ssh-bastion-sg>
+  BastionSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    DependsOn: VPC
+    Properties:
+      GroupDescription: Bastion Security Group
+      GroupName: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "ssh-bastion-sg" ] ]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "ssh-bastion-sg" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  # <project-dev-us-east-1-alb-sg>
+  WordpressAlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    DependsOn: VPC
+    Properties:
+      GroupDescription: Security group for ALB
+      GroupName: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "alb-sg" ] ]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "alb-sg" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  # <project-dev-us-east-1-webapp-sg>
+  WordpressSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "webapp-sg" ] ]
+      GroupDescription: "Allow HTTP/HTTPS and SSH inbound and outbound traffic"
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref WordpressAlbSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          SourceSecurityGroupId: !Ref WordpressAlbSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "webapp-sg" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  # <project-dev-us-east-1-rds-sg>
+  RDSSecurityGroup:
+    Type: "AWS::EC2::SecurityGroup"
+    Properties:
+      GroupDescription: "Database instances security group"
+      GroupName: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "rds-sg" ] ]
+      VpcId: !Ref VPC
+      SecurityGroupIngress: 
+        - IpProtocol: "tcp"        
+          FromPort: 3306        
+          ToPort: 3306
+          SourceSecurityGroupId: !Ref WordpressSecurityGroup
+      SecurityGroupEgress: 
+        - CidrIp: "0.0.0.0/0"
+          IpProtocol: "-1"
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "rds-sg" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+      - Key: Project
+        Value: !Ref AWS::StackName
+  
+  # <project-dev-us-east-1-efs-sg>
+  EFSSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for EFS mount targets
+      GroupName: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "efs-sg" ] ]
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          SourceSecurityGroupId: !Ref WordpressSecurityGroup
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          SourceSecurityGroupId: !Ref BastionSecurityGroup
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "efs-sg" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+      - Key: Project
+        Value: !Ref AWS::StackName
+
+  ############## Create RDS Instance ##############
+  # <project-dev-us-east-1-rds-subnet-group>
+  RDSDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: RDS Database Subnet Group for WordPress
+      DBSubnetGroupName: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "rds-subnet-group" ] ]
+      SubnetIds:
+        - !Ref PrivateBSubnetAZ1
+        - !Ref PrivateBSubnetAZ2
+      Tags:
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  # <project-dev-us-east-1-db-instance>
+  RDSDBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      #Engine options
+      Engine: MySQL
+      EngineVersion: 5.7.37
+      DBName: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "db" ] ]
+      #Settings
+      DBInstanceIdentifier: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "db-instance" ] ]
+      MasterUsername: !Ref DatabaseMasterUsername
+      MasterUserPassword: !Ref DatabaseMasterPassword
+      #Instance configuration
+      DBInstanceClass: db.t2.micro
+      #Storage
+      AllocatedStorage: 20
+      #MaxAllocatedStorage: 100
+      #Connectivity
+      VPCSecurityGroups: 
+      - !Ref RDSSecurityGroup
+      DBSubnetGroupName: !Ref RDSDBSubnetGroup      
+      PubliclyAccessible: false
+      Port: 3306
+      Tags: 
+      - Key: Name
+        Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "db-instance" ] ]
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  ############## Create Elastic File System ##############
+  # <project-dev-us-east-1-efs>
+  ElasticFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      #BackupPolicy:
+      #  Status: ENABLED
+      Encrypted: true
+      LifecyclePolicies:
+        - TransitionToIA: AFTER_60_DAYS
+      PerformanceMode: generalPurpose
+      Encrypted: true
+      ThroughputMode: bursting
+      FileSystemTags:
+        - Key: Name
+          Value: !Join [ "-", [ !Ref AWS::StackName, !Ref EnvironmentName, !Ref "AWS::Region", "efs" ] ]
+        - Key: Environment
+          Value: !Ref EnvironmentName
+        - Key: Project
+          Value: !Ref AWS::StackName
+
+  EFSMountTargetAZ1:
+    Type: AWS::EFS::MountTarget
+    DependsOn:
+      - ElasticFileSystem
+      - EFSSecurityGroup
+    Properties:
+      FileSystemId: !Ref ElasticFileSystem
+      #IpAddress: *.*.*.*
+      SecurityGroups:
+        - !Ref EFSSecurityGroup
+      SubnetId: !Ref PrivateBSubnetAZ1
+
+  EFSMountTargetAZ2:
+    Type: AWS::EFS::MountTarget
+    DependsOn:
+      - ElasticFileSystem
+      - EFSSecurityGroup
+    Properties:
+      FileSystemId: !Ref ElasticFileSystem
+      #IpAddress: *.*.*.*
+      SecurityGroups:
+        - !Ref EFSSecurityGroup
+      SubnetId: !Ref PrivateBSubnetAZ2
+
+  ############## Create Instances ##############
+  #Bastion Instance
+  #BastionInstance:
+  #  Type: AWS::EC2::Instance
+  #  DependsOn:
+  #    - BastionSecurityGroup
+
+  #Wordpress Instance
+  #WordpressInstance:
+  #  Type: AWS::EC2::Instance
+  #  DependsOn:
+  #    - WordpressSecurityGroup
+
+
+Outputs:
+  TemplateID:
+    Description: 'germantorres.co template id.'
+    Value: 'wordpress/cfn-wordpress-rds-ha-with-new-vpc'
+  
+  TemplateVersion:
+    Description: 'germantorres.co template version.'
+    Value: '__VERSION__'
+  
+  StackName:
+    Description: 'Stack name.'
+    Value: !Sub '${AWS::StackName}'
+  
+  AZs: # Better name would be NumberOfAZs, but we keep the name for backward compatibility
+    Description: 'Number of AZs'
+    Value: 2
+    Export:
+      Name: !Sub '${AWS::StackName}-AZs'
+  
+  AZList:  # Better name would be AZs, but the name was already used
+    Description: 'List of AZs'
+    Value: !Join [',', [!Select [0, !GetAZs ''], !Select [1, !GetAZs '']]]
+    Export:
+      Name: !Sub '${AWS::StackName}-AZList'
+  
+  AZA:
+    Description: 'AZ of A'
+    Value: !Select [0, !GetAZs '']
+    Export:
+      Name: !Sub '${AWS::StackName}-AZA'
+  
+  AZB:
+    Description: 'AZ of B'
+    Value: !Select [1, !GetAZs '']
+    Export:
+      Name: !Sub '${AWS::StackName}-AZB'
+  
+  CidrBlock:
+    Description: 'The set of IP addresses for the VPC.'
+    Value: !GetAtt 'VPC.CidrBlock'
+    Export:
+      Name: !Sub '${AWS::StackName}-CidrBlock'
+  
+  VPC:
+    Description: 'VPC.'
+    Value: !Ref VPC
+    Export:
+      Name: !Sub '${AWS::StackName}-VPC'
+  
+  SubnetsPublic:
+    Description: 'Subnets public.'
+    Value: !Join [',', [!Ref PublicASubnetAZ1, !Ref PublicASubnetAZ2]]
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetsPublic'
+  
+  SubnetsAPrivate:
+    Description: 'Subnets private.'
+    Value: !Join [',', [!Ref PrivateASubnetAZ1, !Ref PrivateASubnetAZ2]]
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetsAPrivate'
+  
+  SubnetsBPrivate:
+    Description: 'Subnets private.'
+    Value: !Join [',', [!Ref PrivateBSubnetAZ1, !Ref PrivateBSubnetAZ2]]
+    Export:
+      Name: !Sub '${AWS::StackName}-SubnetsBPrivate'
+
+  BastionSecurityGroup:
+    Value: !Ref BastionSecurityGroup
+  
+  RDSSecurityGroup:
+    Value: !Ref RDSSecurityGroup
+  
+  EFSSecurityGroup:
+    Value: !Ref EFSSecurityGroup
+  
+  WordpressAlbSecurityGroup:
+    Value: !Ref WordpressAlbSecurityGroup
+  
+  WordpressSecurityGroup:
+    Value: !Ref WordpressSecurityGroup
+
+  Cluster:
+    Description: The DB Cluster Name
+    Value: !Ref RDSDBInstance
+
+  SubnetGroup:
+    Description: The DB subnet group name
+    Value: !Ref RDSDBSubnetGroup
+
+  EFS:
+    Description: The created EFS
+    Value: !Ref ElasticFileSystem
+
+  EFSMountTargetAZ1:
+    Description: The EFS MountTargetAZ1
+    Value: !Ref EFSMountTargetAZ1
+
+  EFSMountTargetAZ2:
+    Description: The EFS MountTargetAZ2
+    Value: !Ref EFSMountTargetAZ2
