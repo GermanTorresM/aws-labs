@@ -162,6 +162,7 @@ Resources:
   # ej. project-dev-us-east-1a-public-subnet
   PublicASubnetAZ1:
     Type: 'AWS::EC2::Subnet'
+    DependsOn: VPC
     Properties:
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !Ref PublicASubnetAZ1CIDR
@@ -177,6 +178,7 @@ Resources:
   # ej. project-dev-us-east-1b-public-subnet
   PublicASubnetAZ2:
     Type: 'AWS::EC2::Subnet'
+    DependsOn: VPC
     Properties:
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !Ref PublicASubnetAZ2CIDR
@@ -192,6 +194,7 @@ Resources:
   # ej. project-dev-us-east-1c-public-subnet
   PublicASubnetAZ3:
     Type: 'AWS::EC2::Subnet'
+    DependsOn: VPC
     Properties:
       AvailabilityZone: !Select [2, !GetAZs '']
       CidrBlock: !Ref PublicASubnetAZ3CIDR
@@ -207,6 +210,7 @@ Resources:
   # ej. project-dev-us-east-1a-private1-subnet
   PrivateASubnetAZ1:
     Type: 'AWS::EC2::Subnet'
+    DependsOn: VPC
     Properties:
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !Ref PrivateASubnetAZ1CIDR
@@ -221,6 +225,7 @@ Resources:
   # ej. project-dev-us-east-1b-private1-subnet
   PrivateASubnetAZ2:
     Type: 'AWS::EC2::Subnet'
+    DependsOn: VPC
     Properties:
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !Ref PrivateASubnetAZ2CIDR
@@ -235,6 +240,7 @@ Resources:
   # ej. project-dev-us-east-1c-private1-subnet
   PrivateASubnetAZ3:
     Type: 'AWS::EC2::Subnet'
+    DependsOn: VPC
     Properties:
       AvailabilityZone: !Select [2, !GetAZs '']
       CidrBlock: !Ref PrivateASubnetAZ3CIDR
@@ -249,6 +255,7 @@ Resources:
   # ej. project-dev-us-east-1a-private2-subnet
   PrivateBSubnetAZ1:
     Type: 'AWS::EC2::Subnet'
+    DependsOn: VPC
     Properties:
       AvailabilityZone: !Select [0, !GetAZs '']
       CidrBlock: !Ref PrivateBSubnetAZ1CIDR
@@ -263,6 +270,7 @@ Resources:
   # ej. project-dev-us-east-1b-private2-subnet
   PrivateBSubnetAZ2:
     Type: 'AWS::EC2::Subnet'
+    DependsOn: VPC
     Properties:
       AvailabilityZone: !Select [1, !GetAZs '']
       CidrBlock: !Ref PrivateBSubnetAZ2CIDR
@@ -277,6 +285,7 @@ Resources:
   # ej. project-dev-us-east-1c-private2-subnet
   PrivateBSubnetAZ3:
     Type: 'AWS::EC2::Subnet'
+    DependsOn: VPC
     Properties:
       AvailabilityZone: !Select [2, !GetAZs '']
       CidrBlock: !Ref PrivateBSubnetAZ3CIDR
@@ -300,6 +309,9 @@ Resources:
   ############## Attachment Internet Gateway ##############
   VPCGatewayAttachment:
     Type: 'AWS::EC2::VPCGatewayAttachment'
+    DependsOn:
+    - InternetGateway
+    - VPC
     Properties:
       VpcId: !Ref VPC
       InternetGatewayId: !Ref InternetGateway
@@ -309,6 +321,7 @@ Resources:
   # ej. project-dev-public-rtb
   RouteTablePublic: # should be RouteTableAPublic, but logical id was not changed for backward compatibility
     Type: 'AWS::EC2::RouteTable'
+    DependsOn: VPC
     Properties:
       VpcId: !Ref VPC
       Tags:

@@ -1,0 +1,163 @@
+AWSTemplateFormatVersion: '2010-09-09'
+
+Description: 'RDS Postgres - Create a DB subnet and POSTGRES Database'
+
+
+##########################################  P A R A M E T E R S ##########################################
+# The Parameters allow the user to pass custom settings to the stack before creation  
+Parameters:
+
+  # Ownership
+  Owner:
+    Type: String
+    Default: FirstName LastName
+
+  # ProjectName
+  ProjectName:
+    Type: String
+    Description: 'Project Name of parent VPC stack based on step-1-network.yaml template.'
+
+  VpcId:
+    Type: 'AWS::EC2::VPC::Id'
+    Description: Your VPC Id
+  
+  PublicSubnets:
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Description: Public subnets (Choose two)
+  
+  PrivateSubnets:
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Description: Private subnets (Choose two)
+  
+  DBSubnets:
+    Type: 'List<AWS::EC2::Subnet::Id>'
+    Description: Database subnets (Choose two)
+
+  EnvironmentName:
+    Type: String
+    Description: Environment name - dev, test, stg or prod
+    Default: dev
+    AllowedValues:
+      - dev
+      - test
+      - stg
+      - prod
+    ConstraintDescription: Specify either dev, test, stg or prod
+
+  DatabaseInstanceType:
+    Type: String
+    Default: r5.large
+    AllowedValues:
+      - r5.large
+      - r5.xlarge
+      - r5.2xlarge
+      - r5.4xlarge
+      - r5.8xlarge
+      - r5.12xlarge
+      - r5.16xlarge
+      - r5.24xlarge
+      - t3.small
+      - t3.medium
+    Description: Instance type to be used for the core instances
+
+
+##########################################  M E T A D A T A ##########################################
+Metadata:
+  
+  Authors:
+    Description: Germán Torres M. (gtorres80@gmail.com)
+  License:
+    Description: 'Por definir'
+
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: Project Name
+      Parameters:
+        - ProjectName
+    - Label:
+        default: VPC Settings
+      Parameters:
+        - VpcId
+        - PublicSubnets
+        - PrivateSubnets
+        - DBSubnets
+    - Label:
+        default: Database Instance Settings
+      Parameters:
+        - DatabaseInstanceType
+    - Label:
+        default: Environment Variable
+      Parameters:
+        - EnvironmentName
+        - Owner
+
+    ParameterLabels:
+      ProjectName:
+        default: Project Name
+      PublicSubnets:
+        default: Public Subnets
+      PrivateSubnets:
+        default: Private Subnets for Applications / Services
+      DBSubnets:
+        default: Private Subnets for Database
+      DatabaseInstanceType:
+        default: Database Instance Type
+
+
+##########################################  R E S O U R C E S ##########################################
+Resources:
+
+  # ProjectName-EnvironmentName-aws:region-dbsg
+  # ej. project-dev-us-east-1-dbsg
+  DatabaseSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: RDS security group
+      GroupName: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AWS::Region", "dbsg" ] ]
+      VpcId: !Ref VpcId
+      SecurityGroupEgress:
+        - CidrIp: 0.0.0.0/0
+          Description: Allow all outbound traffic by default
+          IpProtocol: '-1'
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          CidrIp: !Ref 'AWS::NoValue'
+          Description: !Join ['', [ 'from ', !Ref 'AWS::NoValue', ':5432' ]]
+          FromPort: 5432          
+          ToPort: 5432
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AWS::Region", "dbsg" ] ]
+      - Key: Owner
+        Value: !Ref Owner
+      - Key: Project
+        Value: !Ref ProjectName
+      - Key: Environment
+        Value: !Ref EnvironmentName
+
+  # ProjectName-EnvironmentName-aws:region-dbsubnet
+  # ej. project-dev-us-east-1-dbsubnet
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnets for DBCluster database
+      DBSubnetGroupName: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AWS::Region", "dbsubnet" ] ]
+      SubnetIds:
+        - !Select 
+          - 0
+          - !Ref DBSubnets
+        - !Select 
+          - 1
+          - !Ref DBSubnets
+      #UpdateReplacePolicy: Retain
+      #DeletionPolicy: Retain
+      Tags:
+      - Key: Name
+        Value: !Join [ "-", [ !Ref ProjectName, !Ref EnvironmentName, !Ref "AWS::Region", "dbsubnet" ] ]
+      - Key: Owner
+        Value: !Ref Owner
+      - Key: Project
+        Value: !Ref ProjectName
+      - Key: Environment
+        Value: !Ref EnvironmentName

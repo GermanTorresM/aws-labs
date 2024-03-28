@@ -1,0 +1,5 @@
+config:
+  aws:region: us-east-1
+  vpc_name: smartupc-dev-vpc
+  vpc_cidr: 10.0.0.0/16
+  igw_name: smartupc-dev-igw
