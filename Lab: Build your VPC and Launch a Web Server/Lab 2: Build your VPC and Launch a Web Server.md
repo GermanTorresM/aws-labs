@@ -275,7 +275,7 @@ In this task, you will launch an Amazon EC2 instance into the new VPC. You will 
 
 33. In the search box to the right of  __Services__, search for and choose __EC2__ to open the EC2 console.
 
-34. From the span style="color:orange">Launch instance</span> menu choose __Launch instance__.
+34. From the <span style="color:orange">Launch instance</span> menu choose __Launch instance__.
 
 35. Name the instance:
 
